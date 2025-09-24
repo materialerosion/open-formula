@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     const openai = createOpenAI({
       compatibility: "strict", // strict mode, enable when using the OpenAI API
       apiKey,
+      baseUrl: process.env.OPENAI_BASE_URL,
     });
 
     llm = openai(model);

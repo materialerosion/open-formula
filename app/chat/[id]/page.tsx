@@ -2,7 +2,7 @@
 
 import { ChatPanel } from "@/components/chat/panel";
 import { SideNavBar } from "@/components/side-navbar";
-import { useSupabase } from "@/lib/supabase";
+import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 
 type Props = {
@@ -12,8 +12,8 @@ type Props = {
 };
 
 const ChatPage = ({ params: { id } }: Props) => {
-  const { session } = useSupabase();
-
+  const { data: session, status } = useSession();
+  if (status === "loading") return null;
   if (!session) redirect("/signin");
 
   return (

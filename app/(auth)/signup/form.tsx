@@ -46,70 +46,8 @@ const formSchema = z.object({
 });
 
 const SignUpForm = () => {
-  const supabase = createClientComponentClient();
-
-  const [formStatus, setFormStatus] = useState<FormStatus>(FormStatus.Idle);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      full_name: "",
-      email: "",
-      password: "",
-    },
-  });
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setFormStatus(FormStatus.Loading);
-
-    const { error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        data: {
-          full_name: values.full_name,
-        },
-        emailRedirectTo: `${location.origin}/api/auth/callback`,
-      },
-    });
-
-    if (error) {
-      console.error(error);
-      setFormStatus(FormStatus.Error);
-      toast.error(error.message, {
-        position: "bottom-center",
-      });
-
-      return;
-    }
-
-    toast.success("Check your email for the confirmation link", {
-      position: "bottom-center",
-    });
-    setFormStatus(FormStatus.Success);
-  };
-
-  const handleOAuthSignIn = async (provider: OAuthProviders) => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
-
-    if (error) {
-      console.error(error);
-      toast.error("Could not Sign In", {
-        position: "top-right",
-      });
-    }
-  };
-
-  const handleGoogleSignIn = () => {
-    handleOAuthSignIn(OAuthProviders.google);
-  };
-
-  const handleGitHubSignIn = () => {
-    handleOAuthSignIn(OAuthProviders.github);
+  const handleAzureSignUp = () => {
+    window.location.href = "/api/auth/signin/azure-ad";
   };
 
   return (
@@ -117,95 +55,19 @@ const SignUpForm = () => {
       <Link href="/">
         <h1 className="text-4xl font-bold">Open Artifacts</h1>
       </Link>
-
       <Card className="max-w-sm w-full">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Create an account</CardTitle>
         </CardHeader>
-
         <CardContent className="grid gap-4">
-          <OAuthProviderButton
-            provider={OAuthProviders.google}
-            onClick={handleGoogleSignIn}
-          >
-            Sign up with Google
-          </OAuthProviderButton>
-
-          <OAuthProviderButton
-            provider={OAuthProviders.github}
-            onClick={handleGitHubSignIn}
-          >
-            Sign in with GitHub
-          </OAuthProviderButton>
-
-          <div className="flex items-center gap-4">
-            <Separator className="flex-1" />
-            <span className="text-neutral-500 text-sm">OR</span>
-            <Separator className="flex-1" />
-          </div>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="full_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="you@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full">
-                {formStatus === FormStatus.Loading && (
-                  <>
-                    <Loader2Icon className="animate-spin mr-2" /> Signing up
-                  </>
-                )}
-
-                {formStatus !== FormStatus.Loading && "Sign Up"}
-              </Button>
-            </form>
-          </Form>
+          <Button onClick={handleAzureSignUp} className="w-full">
+            Sign up with Microsoft (Entra ID)
+          </Button>
         </CardContent>
-
         <CardFooter className="flex items-center justify-center">
           <SignInFooter />
         </CardFooter>
       </Card>
-
       <SocialFooter />
     </main>
   );

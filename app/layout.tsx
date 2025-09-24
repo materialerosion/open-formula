@@ -4,9 +4,9 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "react-hot-toast";
 import ReactQueryProvider from "@/app/react-query-provider";
-import { cookies } from "next/headers";
-import { SupabaseProvider } from "@/lib/supabase";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { getServerSession } from "next-auth";
+import { SessionProvider } from "next-auth/react";
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -23,24 +23,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = createServerComponentClient({ cookies });
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
+  const session = await getServerSession(authOptions);
   return (
     <html lang="en">
-      <body
-        className={cn("min-h-screen font-sans antialiased", fontSans.variable)}
-      >
-        <SupabaseProvider session={session}>
+      <body className={cn("min-h-screen font-sans antialiased", fontSans.variable)}>
+        <SessionProvider session={session}>
           <ReactQueryProvider>
             {children}
-
             <Toaster />
           </ReactQueryProvider>
-        </SupabaseProvider>
+        </SessionProvider>
       </body>
     </html>
   );

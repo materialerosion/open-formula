@@ -22,4 +22,5 @@ export type Attachment = {
 export enum OAuthProviders {
   google = "google",
   github = "github",
+  azure = "azure",
 }

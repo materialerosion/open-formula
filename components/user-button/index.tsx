@@ -12,7 +12,7 @@ import { SignOutDialog } from "./sign-out-dialog";
 import { UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useSupabase } from "@/lib/supabase";
+import { useSession, signOut } from "next-auth/react";
 
 type Props = {
   expanded?: boolean;
@@ -20,8 +20,7 @@ type Props = {
 
 export const UserButton = ({ expanded = false }: Props) => {
   const router = useRouter();
-
-  const { supabase } = useSupabase();
+  const { data: session } = useSession();
 
   const [isSignoutDialogOpen, setIsSignoutDialogOpen] = useState(false);
 
@@ -34,11 +33,8 @@ export const UserButton = ({ expanded = false }: Props) => {
     e.preventDefault();
 
     try {
-      const res = await supabase.auth.signOut();
-
-      if (res.error) throw new Error(res.error.message);
-
-      router.refresh();
+      await signOut({ redirect: false });
+      router.push("/signin");
     } catch (error) {
       console.error(error);
       alert("Error signing out");

@@ -18,6 +18,11 @@ const defaultSettings: SettingsSchema = {
 };
 
 export const getSettings = (): SettingsSchema => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return defaultSettings;
+  }
+
   const storedSettings = window.localStorage.getItem(settingsLocalStorageKey);
 
   if (!storedSettings) {

@@ -5,29 +5,35 @@ import { UserSettings } from "@/components/side-navbar/user-settings";
 import { Button } from "@/components/ui/button";
 import { UserButton } from "@/components/user-button";
 import { getChats } from "@/lib/db";
-import { useSupabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2Icon, SidebarIcon, SquarePenIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 export const SideNavBar = () => {
   const [open, setOpen] = useState(false);
 
   const params = useParams();
 
-  const { supabase, session } = useSupabase();
-  const userId = session?.user.id;
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
 
   const {
     data: chats,
     error,
     isLoading,
   } = useQuery({
-    queryKey: ["chats"],
-    queryFn: async () => await getChats(supabase, userId),
+    queryKey: ["chats", userId],
+    queryFn: async () => {
+      const response = await fetch("/api/chats");
+      if (!response.ok) {
+        throw new Error("Failed to fetch chats");
+      }
+      return response.json();
+    },
     enabled: !!userId,
   });
 
@@ -56,12 +62,12 @@ export const SideNavBar = () => {
           <span className="font-medium">Chats</span>
           {chats && (
             <div className="flex flex-col flex-1 gap-2 overflow-auto">
-              {chats.map((item, index) => (
+              {chats.map((item: any, index: number) => (
                 <ChatItem
                   key={index}
                   id={item.id}
                   title={item.title}
-                  selected={item.id === params.id}
+                  selected={item.id === params?.id}
                 />
               ))}
             </div>

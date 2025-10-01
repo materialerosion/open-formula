@@ -1,48 +1,37 @@
 import { Attachment } from "@/app/types";
-import { SupabaseContextType } from "@/lib/supabase/types";
+import { query } from "@/lib/postgres";
 
-export const getChats = async (
-  supabase: SupabaseContextType["supabase"],
-  userId: string | null | undefined
-) => {
+export const getChats = async (userId: string | null | undefined) => {
   if (!userId) throw new Error("User not authenticated");
 
-  const { data, error } = await supabase
-    .from("chats")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error(error);
-    throw new Error(error.message);
+  try {
+    const result = await query(
+      "SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC",
+      [userId]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error("Error fetching chats:", error);
+    throw new Error("Failed to fetch chats");
   }
-
-  return data;
 };
 
-export const getChatMessages = async (
-  supabase: SupabaseContextType["supabase"],
-  id: string | null
-) => {
+export const getChatMessages = async (id: string | null) => {
   if (!id) return [];
 
-  const { data, error } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("chat_id", id)
-    .order("created_at");
-
-  if (error) {
-    console.error(error);
-    throw new Error(error.message);
+  try {
+    const result = await query(
+      "SELECT * FROM messages WHERE chat_id = $1 ORDER BY created_at ASC",
+      [id]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    throw new Error("Failed to fetch messages");
   }
-
-  return data;
 };
 
 export const createChat = async (
-  supabase: SupabaseContextType["supabase"],
   title: string,
   userId: string | null | undefined
 ) => {
@@ -50,45 +39,39 @@ export const createChat = async (
     throw new Error("User not authenticated");
   }
 
-  const { data, error } = await supabase
-    .from("chats")
-    .insert({
-      title,
-      user_id: userId,
-    })
-    .select();
+  try {
+    const result = await query(
+      "INSERT INTO chats (title, user_id, created_at) VALUES ($1, $2, NOW()) RETURNING *",
+      [title, userId]
+    );
 
-  if (error) {
-    console.error(error);
-    throw new Error(error.message);
+    if (result.rows.length === 0) {
+      throw new Error("Could not create chat");
+    }
+
+    return result.rows[0];
+  } catch (error) {
+    console.error("Error creating chat:", error);
+    throw new Error("Failed to create chat");
   }
-
-  if (!data || data.length === 0) {
-    throw new Error("Could not create chat");
-  }
-
-  return data[0];
 };
 
 export const addMessage = async (
-  supabase: SupabaseContextType["supabase"],
   chatId: string | null,
   message: { role: string; content: string; metadata?: Record<string, any> },
   attachments: Attachment[] = []
 ) => {
   if (!chatId) return message;
 
-  const { error } = await supabase.from("messages").insert({
-    chat_id: chatId,
-    role: message.role,
-    text: message.content,
-    attachments,
-  });
+  try {
+    await query(
+      "INSERT INTO messages (chat_id, role, text, attachments, created_at) VALUES ($1, $2, $3, $4, NOW())",
+      [chatId, message.role, message.content, JSON.stringify(attachments)]
+    );
 
-  if (error) {
-    console.error(error);
-    throw new Error(error.message);
+    return message;
+  } catch (error) {
+    console.error("Error adding message:", error);
+    throw new Error("Failed to add message");
   }
-
-  return message;
 };

@@ -4,14 +4,16 @@ import { ChatPanel } from "@/components/chat/panel";
 import { SideNavBar } from "@/components/side-navbar";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { use } from "react";
 
 type Props = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-const ChatPage = ({ params: { id } }: Props) => {
+const ChatPage = ({ params }: Props) => {
+  const { id } = use(params);
   const { data: session, status } = useSession();
   if (status === "loading") return null;
   if (!session) redirect("/signin");

@@ -5,10 +5,8 @@ import { ChatInput, Props as ChatInputProps } from "@/components/chat/input";
 import { ChatMessageList } from "@/components/chat/message-list";
 import { Message, useChat } from "ai/react";
 import { getSettings } from "@/lib/userSettings";
-import { addMessage, createChat, getChatMessages } from "@/lib/db";
 import { Loader2Icon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSupabase } from "@/lib/supabase";
 import { Chat, Models, Attachment } from "@/app/types";
 import { ArtifactMessagePartData } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -18,15 +16,16 @@ import { Props as ReactArtifactProps } from "@/components/artifact/react";
 import { useEffect, useState } from "react";
 import { useScrollAnchor } from "@/lib/hooks/use-scroll-anchor";
 import { useFakeWhisper } from "@/lib/hooks/use-fake-whisper";
+import { useSession } from "next-auth/react";
 
 type Props = {
   id: string | null;
 };
 
 export const ChatPanel = ({ id }: Props) => {
-  // Get settings and supabase instance
+  // Get settings and session
   const settings = getSettings();
-  const { supabase, session } = useSupabase();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -43,15 +42,22 @@ export const ChatPanel = ({ id }: Props) => {
   const fetchMessages = async () => {
     if (chatId) {
       setFetchingMessages(true);
-      const messages = await getChatMessages(supabase, chatId);
-      setInitialMessages(
-        messages.map((message) => ({
-          id: String(message.id),
-          role: message.role as Message["role"],
-          content: message.text,
-          experimental_attachments: (message.attachments as Attachment[]) || [],
-        }))
-      );
+      try {
+        const response = await fetch(`/api/chats/${chatId}/messages`);
+        if (response.ok) {
+          const messages = await response.json();
+          setInitialMessages(
+            messages.map((message: any) => ({
+              id: String(message.id),
+              role: message.role as Message["role"],
+              content: message.text,
+              experimental_attachments: (message.attachments as Attachment[]) || [],
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
       setFetchingMessages(false);
     } else {
       setInitialMessages([]);
@@ -70,15 +76,32 @@ export const ChatPanel = ({ id }: Props) => {
       title: string;
       firstMessage: Message;
       secondMessage: Message;
-    }) => await createChat(supabase, title, session?.user.id),
+    }) => {
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (!response.ok) throw new Error("Failed to create chat");
+      return response.json();
+    },
     onSuccess: async (newChat, { firstMessage, secondMessage }) => {
       queryClient.setQueryData<Chat[]>(["chats"], (oldChats) => {
         return [...(oldChats || []), newChat];
       });
       setChatId(newChat.id);
 
-      await addMessage(supabase, newChat.id, firstMessage);
-      await addMessage(supabase, newChat.id, secondMessage);
+      // Add messages to the new chat in sequence to maintain order
+      await fetch(`/api/chats/${newChat.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: firstMessage }),
+      });
+      await fetch(`/api/chats/${newChat.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: secondMessage }),
+      });
 
       router.push(`/chat/${newChat.id}`);
     },
@@ -96,7 +119,15 @@ export const ChatPanel = ({ id }: Props) => {
     initialMessages,
     onFinish: async (message) => {
       if (chatId) {
-        await addMessage(supabase, chatId, message);
+        try {
+          await fetch(`/api/chats/${chatId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message }),
+          });
+        } catch (error) {
+          console.error("Error saving message:", error);
+        }
       }
     },
     sendExtraMessageFields: true,
@@ -191,6 +222,22 @@ export const ChatPanel = ({ id }: Props) => {
       ...selectedArtifacts.map((url) => ({ url })),
     ];
 
+    // Save user message to database first (for existing chats)
+    if (chatId) {
+      try {
+        await fetch(`/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            message: { role: "user", content: query },
+            attachments 
+          }),
+        });
+      } catch (error) {
+        console.error("Error saving user message:", error);
+      }
+    }
+
     append(
       {
         role: "user",
@@ -209,15 +256,6 @@ export const ChatPanel = ({ id }: Props) => {
 
     setInput("");
     stopRecording();
-
-    if (chatId) {
-      await addMessage(
-        supabase,
-        chatId,
-        { role: "user", content: query },
-        attachments
-      );
-    }
 
     setAttachments([]);
     setSelectedArtifacts([]);

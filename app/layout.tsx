@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "react-hot-toast";
 import ReactQueryProvider from "@/app/react-query-provider";
 import { getServerSession } from "next-auth";
-import { SessionProvider } from "next-auth/react";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
+import SessionProviderWrapper from "@/components/session-provider-wrapper";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -27,12 +27,12 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={cn("min-h-screen font-sans antialiased", fontSans.variable)}>
-        <SessionProvider session={session}>
+        <SessionProviderWrapper session={session}>
           <ReactQueryProvider>
             {children}
             <Toaster />
           </ReactQueryProvider>
-        </SessionProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );
